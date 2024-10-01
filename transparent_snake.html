@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="pt">
+  <head>
+    <base target="_self">
+    <meta charset="utf-8">
+    <title>Transparent Snake</title>
+    <style>
+      body, html {
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+      }
+
+      #bg {
+        /* The image used */
+        background-image: url("image.jpg");
+
+        /* Full height */
+        height: 100%;
+
+        /* Center and scale the image nicely */
+        background-position: center;
+        background-repeat: no-repeat;
+        background-size: cover;
+      }
+
+      #htwo, #hthree {
+        color: white;
+        position: absolute;
+        top: 80%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="bg">
+      <canvas id="myCanvas" style="margin: 0; padding: 0;">
+Your browser does not support the HTML5 canvas tag.</canvas>
+    </div>
+    <h2 id="htwo">Press any arrow key to move</h2>
+    <h2 id="hthree" hidden>Congratulations! Press Enter to play again</h2>
+    <script>
+var canvas = document.getElementById('myCanvas');
+var bgdiv = document.getElementById('bg');
+var table = [];
+var ti, tj, bordi, bordj, dim;
+var fi, fj, hsi, hsj, dir;
+var snake_length, max_length;
+var is_moving = false;
+var won = false, fail = false;
+var semaphoreKeys = [false,false,false,false];
+var d_step = 0;
+var color_bg = "black";
+
+class Queue {
+  constructor() {
+    this.elements = {};
+    this.head = 0;
+    this.tail = 0;
+  }
+  enqueue(element) {
+    this.elements[this.tail] = element;
+    this.tail++;
+  }
+  dequeue() {
+    const item = this.elements[this.head];
+    delete this.elements[this.head];
+    this.head++;
+    return item;
+  }
+  peek() {
+    return this.elements[this.head];
+  }
+  last() {
+    return this.elements[this.tail-1];
+  }
+  dequeueTotally() {
+    let l = this.length();
+    for (let i = 0; i < l; i++){
+      delete this.elements[this.head+i];
+    }
+    this.head = 0;
+    this.tail = 0;
+  }
+  length() {
+    return this.tail - this.head;
+  }
+  isEmpty() {
+    return this.length() === 0;
+  }
+}
+
+var snaqueue = new Queue();
+var comands = new Queue();
+
+window.onload = function() {
+  canvas.width = bgdiv.offsetWidth;
+  canvas.height = bgdiv.offsetHeight;
+  start_new_game();
+}
+window.onresize = function(){
+  canvas.style.width = bgdiv.offsetWidth+"px";
+  canvas.style.height = bgdiv.offsetHeight+"px";
+  window.requestAnimationFrame(draw_game_on_canvas);
+}
+
+function start_new_game(){
+  dim = 120;
+  ti = ~~(canvas.height/dim);
+  tj = ~~(canvas.width/dim);
+  bordi = ~~((canvas.height - ti*dim)/2);
+  bordj = ~~((canvas.width - tj*dim)/2);
+  table = new Array(ti);
+  for (let i = 0; i < ti; i++) {
+    table[i] = new Array(tj);
+    for (let j = 0; j < tj; j++) {
+      table[i][j] = 0;
+    }
+  }
+  hsi = ~~(ti/2);
+  hsj = ~~(tj/2);
+  snake_length = 1;
+  max_length = ti * tj;
+  table[hsi][hsj] = 1;
+  snaqueue.enqueue([hsi,hsj]);
+  set_new_food_point();
+  window.requestAnimationFrame(draw_game_on_canvas);
+}
+
+function set_new_food_point(){
+  if(max_length - snake_length > max_length/10){
+    do{
+      fi = Math.floor(Math.random() * ti);
+      fj = Math.floor(Math.random() * tj);
+    }while(table[fi][fj] != 0);
+  }else{
+    for (let i = 0; i < ti && table[fi][fj] != 0; i++) {
+      for (let j = 0; j < tj && table[fi][fj] != 0; j++) {
+        if(table[i][j] == 0){
+          fi = i;
+          fj = j;
+        }
+      }
+    }
+  }
+  table[fi][fj] = 2;
+}
+
+function draw_game_on_canvas(){
+  let context = canvas.getContext('2d');
+  //draw bg
+  context.fillStyle = color_bg;
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  //draw white stroke
+  context.strokeStyle = 'white';
+  context.rect(bordj-1, bordi-1, tj*dim +2, ti*dim +2);
+  context.stroke();
+  //draw snake and food point
+  for (let i = 0; i < ti; i++) {
+    for (let j = 0; j < tj; j++) {
+      if(table[i][j] == 1){//snake points
+        //clear
+        context.clearRect(j*dim + bordj, i*dim + bordi, dim, dim);
+        context.fillStyle = "rgba(0, 0, 0, 0.5)";
+        context.fillRect(hsj*dim + bordj, hsi*dim + bordi, dim, dim);//head shadow
+      }else if(table[i][j] == 2){//food point
+        context.fillStyle = 'red';
+        context.fillRect(j*dim + bordj, i*dim + bordi, dim, dim);
+      }
+    }
+  }
+}
+
+function moving(){
+  if(is_moving){
+    setTimeout(function() {
+      let context = canvas.getContext('2d');
+      context.clearRect(hsj*dim + bordj, hsi*dim + bordi, dim, dim);//clean de last snake point from the head shadow
+      if(!comands.isEmpty()){
+        dir = comands.dequeue();
+      }
+      
+      if(dir == 'u'){
+        if(hsi > 0){
+          hsi -= 1;
+        }else{
+          fail = true;
+          is_moving = false;
+        }
+      }else if(dir == 'd'){
+        if(hsi < ti-1){
+          hsi += 1;
+        }else{
+          fail = true;
+          is_moving = false;
+        }
+      }else if(dir == 'l'){
+        if(hsj > 0){
+          hsj -= 1;
+        }else{
+          fail = true;
+          is_moving = false;
+        }
+      }else if(dir == 'r'){
+        if(hsj < tj-1){
+          hsj += 1;
+        }else{
+          fail = true;
+          is_moving = false;
+        }
+      }
+
+      if(is_moving){
+        context.clearRect(hsj*dim + bordj, hsi*dim + bordi, dim, dim);
+        context.fillStyle = "rgba(0, 0, 0, 0.5)";
+        context.fillRect(hsj*dim + bordj, hsi*dim + bordi, dim, dim);//head shadow
+
+        if(table[hsi][hsj] == 1){
+          fail = true;
+          is_moving = false;
+        }else{
+          if(table[hsi][hsj] == 2){
+            snake_length += 1;
+            if(snake_length == max_length){
+              is_moving = false;
+              won = true;
+            }else{
+              set_new_food_point();
+              context.fillStyle = 'red';
+              context.fillRect(fj*dim + bordj, fi*dim + bordi, dim, dim);
+            }
+          }else{
+            let p = snaqueue.dequeue();
+            context.fillStyle = color_bg;
+            context.fillRect(p[1]*dim + bordj, p[0]*dim + bordi, dim, dim);
+            table[p[0]][p[1]] = 0;
+          }
+          table[hsi][hsj] = 1;
+          snaqueue.enqueue([hsi,hsj]);
+        }
+      }
+
+      moving();
+
+    }, 220);
+  }else if(won){
+    let context = canvas.getContext('2d');
+    document.getElementById("hthree").hidden = false;
+    context.clearRect(0, 0, canvas.width, canvas.height);
+  }else{
+    darken_animation();
+  }
+}
+
+function game_over(){
+  snaqueue.dequeueTotally();
+  comands.dequeueTotally();
+  document.getElementById("htwo").hidden = false;
+  fail = false;
+  start_new_game();
+}
+
+function darken_animation(){
+  if(d_step < 1){
+    setTimeout(function() {
+      let context = canvas.getContext('2d');
+      context.fillStyle = "rgba(0, 0, 0, "+d_step+")";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      d_step += 0.05;
+      darken_animation();
+    }, 100);
+  }else{
+    d_step = 0;
+    game_over();
+  }
+}
+
+document.onkeydown = function (e) {
+  e = e || window.event;
+  if(won){
+    if(e.keyCode == '13') {// Enter
+        won = false;
+        document.getElementById("hthree").hidden = true;
+        darken_animation();
+      }
+    }else if(!fail){
+      if(e.keyCode == '38' && !semaphoreKeys[0] && comands.last() != 'u' && !(comands.isEmpty() && dir == 'u')) {// up arrow
+        comands.enqueue('u');
+        semaphoreKeys[0] = true;
+      }else if(e.keyCode == '40' && !semaphoreKeys[1] && comands.last() != 'd' && !(comands.isEmpty() && dir == 'd')) {// down arrow
+        comands.enqueue('d');
+        semaphoreKeys[1] = true;
+      }else if(e.keyCode == '37' && !semaphoreKeys[2] && comands.last() != 'l' && !(comands.isEmpty() && dir == 'l')) {// left arrow
+        comands.enqueue('l');
+        semaphoreKeys[2] = true;
+      }else if(e.keyCode == '39' && !semaphoreKeys[3] && comands.last() != 'r' && !(comands.isEmpty() && dir == 'r')) {// right arrow
+        comands.enqueue('r');
+        semaphoreKeys[3] = true;
+      }
+      if(!is_moving && (e.keyCode == '37' || e.keyCode == '38' || e.keyCode == '39' || e.keyCode == '40')){
+        document.getElementById("htwo").hidden = true;
+        is_moving = true;
+        moving();
+      }
+    }
+}
+
+document.onkeyup = function (e) {
+  if(e.keyCode == '38') {// up arrow
+    semaphoreKeys[0] = false;
+  }else if(e.keyCode == '40') {// down arrow
+    semaphoreKeys[1] = false;
+  }else if(e.keyCode == '37') {// left arrow
+    semaphoreKeys[2] = false;
+  }else if(e.keyCode == '39') {// right arrow
+    semaphoreKeys[3] = false;
+  }else if(e.keyCode == '32'){//space
+    if(color_bg == "black"){
+      color_bg = "gray";
+    }else{
+      color_bg = "black";
+    }
+    draw_game_on_canvas();
+  }
+}
+
+    </script>
+  </body>
+</html>
