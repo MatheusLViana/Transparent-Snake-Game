@@ -249,7 +249,7 @@ function moving(){
     document.getElementById("hthree").hidden = false;
     context.clearRect(0, 0, canvas.width, canvas.height);
   }else{
-    darken_animation();
+    fade_to_black_animation();
   }
 }
 
@@ -261,14 +261,14 @@ function game_over(){
   start_new_game();
 }
 
-function darken_animation(){
+function fade_to_black_animation(){
   if(d_step < 1){
     setTimeout(function() {
       let context = canvas.getContext('2d');
       context.fillStyle = "rgba(0, 0, 0, "+d_step+")";
       context.fillRect(0, 0, canvas.width, canvas.height);
       d_step += 0.05;
-      darken_animation();
+      fade_to_black_animation();
     }, 100);
   }else{
     d_step = 0;
@@ -282,7 +282,7 @@ document.onkeydown = function (e) {
     if(e.keyCode == '13') {// Enter
         won = false;
         document.getElementById("hthree").hidden = true;
-        darken_animation();
+        fade_to_black_animation();
       }
     }else if(!fail){
       if(e.keyCode == '38' && !semaphoreKeys[0] && comands.last() != 'u' && !(comands.isEmpty() && dir == 'u')) {// up arrow
